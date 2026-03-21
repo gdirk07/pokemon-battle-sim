@@ -1,69 +1,94 @@
 const { BattleStream, getPlayerStreams } = require('pokemon-showdown');
 const { parseOutput } = require('./parser');
-const { broadcast } = require('../server/socket');
+const { buildRandomSet } = require('./team-builder');
 
 class BattleSession {
     constructor(id) {
         this.id = id;
-        this.stream = new BattleStream();
+        this.ended = false;
+        this.initStream();
+    }
 
-        const players = getPlayerStreams(this.stream);
-        this.p1 = players.p1;
-        this.p2 = players.p2;
+    initStream() {
+        this.stream = new BattleStream();
 
         this.state = {
             turn: 0,
             log: [],
-            request: null,
+            lastWinner: null
         };
+    }
 
-        this.init();
+    async startBattle() {
+        const p1Team = await buildRandomSet("p1");
+        const p2Team = await buildRandomSet("p2");
+        console.log('team1: ', p1Team);
+        console.log('team2: ', p2Team);
+        
+        this.stream.write(`>start {"formatid":"gen9customgame"}`);
+        this.stream.write(
+            `>player p1 {"name":"Challenger 1", "team":"${p1Team}"}`);
+        this.stream.write(
+            `>player p2 {"name":"Challenger 2", "team":"${p2Team}"}`);
+        this.stream.write(`>p1 team 1`);
+        this.stream.write(`>p2 team 1`);
         this.listen();
-    }
 
-    init() {
-        this.stream.write(`>start {"formatid":"gen9randombattle"}`);
-        this.stream.write(`>player p1 {"name":"Challenger 1"}`);
-        this.stream.write(`>player p2 {"name":"Challenger 2"}`);
     }
-
     listen() {
         (async () => {
             for await (const chunk of this.stream) {
                 const events = parseOutput(chunk);
-                events.forEach(e => this.handleEvent(e));
-
-                broadcast({
-                    type: 'battle_update',
-                    battleId: this.id,
-                    state: this.state
-                });
+                for (const event of events) {
+                    this.handleEvent(event);
+                }
             }
         })();
     }
 
     handleEvent(event) {
         this.state.log.push(event.raw);
+        switch (event.type) {
+            case 'turn':
+                this.state.turn = parseInt(event.data[0]);
+                break;
 
-        if (event.type === 'turn') {
-            this.state.turn = parseInt(event.data[0]);
+            case 'request':
+                this.handleRequest(event);
+                break;
+
+            case 'win':
+                this.handleWin(event);
+                break;
         }
+        console.log(`[${this.id}]`, event.type, event.data);
+    }
 
-        if (event.type === 'request') {
-            try {
-                this.state.request = JSON.parse(event.data.join('|'));
-            } catch {}
+    handleRequest(event) {
+        try {
+            const request = JSON.parse(event.data[0]);
+            if (!request.active || !request.active[0].moves) return;            
+        } catch (err) {
+            console.error('Failed to handle request:', err);
         }
     }
 
-    makeMove(player, moveIndex) {
-        if (player === 'p1') {
-            this.p1.write(`move ${moveIndex}`);
-        } else {
-            this.p2.write(`move ${moveIndex}`);
-        }
+    handleWin(event) {
+        if (this.ended) return;
+        this.ended = true;
+
+        const winner = event.data[0];
+        this.state.lastWinner = winner;
+
+        console.log(`[${this.id}] Winner: ${winner}`);
     }
 
+    nextTurn() {
+        const move1 = Math.floor(Math.random() * 4) + 1
+        const move2 = Math.floor(Math.random() * 4) + 1
+        this.stream.write(`>p1 move ${move1}`);
+        this.stream.write(`>p2 move ${move2}`);
+    }
     getState() {
         return this.state;
     }

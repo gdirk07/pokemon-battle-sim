@@ -17,6 +17,13 @@ class BattleManager {
     getBattle(id) {
         return this.battles.get(id);
     }
+
+    nextTurn() {
+        this.battles.nextTurn();
+    }
+    removeBattle(id) {
+        this.battles.delete(id);
+    }
 }
 
 module.exports = new BattleManager();

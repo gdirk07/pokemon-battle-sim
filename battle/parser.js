@@ -5,7 +5,6 @@ function parseOutput(chunk) {
         .filter(line => line.startsWith('|'))
         .map(line => {
             const parts = line.split('|');
-
             return {
                 raw: line,
                 type: parts[1],
