@@ -1,6 +1,7 @@
 const { BattleStream, getPlayerStreams } = require('pokemon-showdown');
 const { parseOutput } = require('./parser');
 const { buildRandomSet } = require('./team-builder');
+const { Teams } = require('pokemon-showdown');
 
 class BattleSession {
     constructor(id) {
@@ -33,6 +34,8 @@ class BattleSession {
         this.stream.write(`>p1 team 1`);
         this.stream.write(`>p2 team 1`);
         this.listen();
+
+        return [Teams.unpack(p1Team), Teams.unpack(p2Team)];
 
     }
     listen() {

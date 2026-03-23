@@ -5,8 +5,13 @@ const BattleManager = require('../battle/BattleManager');
 router.post('/battle/start', async (req, res) => {
     try {
         const battle = BattleManager.createBattle();
-        await battle.startBattle();
-        res.json({ battleId: battle.id });
+        const combatants = await battle.startBattle();
+        res.json({ 
+            id: battle.id,
+            player1: combatants[0][0],
+            player2: combatants[1][0],
+            turn: 1,
+        });
     } catch (e) {
         console.error(e);
         res.status(500).send('Failed to start battle');
