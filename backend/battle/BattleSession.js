@@ -16,15 +16,13 @@ class BattleSession {
         this.state = {
             turn: 0,
             log: [],
-            lastWinner: null
+            lastWinner: null,
         };
     }
 
     async startBattle() {
         const p1Team = await buildRandomSet("p1");
         const p2Team = await buildRandomSet("p2");
-        console.log('team1: ', p1Team);
-        console.log('team2: ', p2Team);
         
         this.stream.write(`>start {"formatid":"gen9customgame"}`);
         this.stream.write(
@@ -34,7 +32,7 @@ class BattleSession {
         this.stream.write(`>p1 team 1`);
         this.stream.write(`>p2 team 1`);
         this.listen();
-
+        
         return [Teams.unpack(p1Team), Teams.unpack(p2Team)];
 
     }
@@ -70,6 +68,11 @@ class BattleSession {
     handleRequest(event) {
         try {
             const request = JSON.parse(event.data[0]);
+            if (request?.teamPreview) {
+                request.side.id === 'p1' ?
+                    this.state.player1 = request.side.pokemon[0] :
+                    this.state.player2 = request.side.pokemon[0];
+            }
             if (!request.active || !request.active[0].moves) return;            
         } catch (err) {
             console.error('Failed to handle request:', err);

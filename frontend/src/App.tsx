@@ -9,13 +9,17 @@ import './App.css'
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('idle');
-  const { battle, loading, error, generateTeams, nextTurn } = useBattle();
+  const { battle, loading, error, generateTeams, fetchState, nextTurn } = useBattle();
 
   const handleGenerate = async() => {
     await generateTeams();
   }
   const handleStart = async() => {
-    setScreen('battle');
+    if (battle) {
+      battle?.log.push("Start Battle");
+      await fetchState(battle.id);
+      setScreen('battle');
+    }  
   }
 
   const handleNextTurn = async () => {

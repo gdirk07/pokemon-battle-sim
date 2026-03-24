@@ -11,6 +11,7 @@ router.post('/battle/start', async (req, res) => {
             player1: combatants[0][0],
             player2: combatants[1][0],
             turn: 1,
+            log: [],
         });
     } catch (e) {
         console.error(e);
@@ -20,8 +21,9 @@ router.post('/battle/start', async (req, res) => {
 
 router.get('/battle/state/:id', (req, res) => {
     const battle = BattleManager.getBattle(req.params.id);
+    const battleState = battle.getState();
     if (!battle) return res.status(404).send('Not found');
-    res.json(battle.getState());
+    res.json(battleState);
 });
 
 router.post('/battle/nextturn/:id', (req, res) => {

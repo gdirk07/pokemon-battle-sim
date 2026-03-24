@@ -1,3 +1,11 @@
+export interface PokemonStats {
+  atk: number
+  def: number
+  spa: number
+  spd: number
+  spe: number
+}
+
 export interface PokemonSprites {
     officialArtwork: string | null,
     frontDefault: string | null,
@@ -9,9 +17,15 @@ export interface Pokemon {
     species?: string,
     ability?: string,
     level: number,
-    types: string[],
     item?: string,
     sprites?: PokemonSprites,
+    hp?: number,
+    maxHp?: number,
+    status?: string,
+    moves?: string[],
+    stats?: {},
+    teraType?: string,
+    terastallized: boolean,
 };
 
 export interface BattleState {

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { fetchBattleSprites } from '../services/pokeapi';
 import type { BattleState } from '../../../shared/types/battle';
+import { parseBattleState } from '../services/battleParser';
 
 export function useBattle() {
     const [battle, setBattle] = useState<BattleState | null>(null);
@@ -16,7 +17,7 @@ export function useBattle() {
             ...battleData,
             player1: { ...battleData.player1, sprites: pokemon1Sprites },
             player2: { ...battleData.player2, sprites: pokemon2Sprites },
-        }
+        };
     }
 
     const generateTeams = useCallback(async() => {
@@ -25,8 +26,7 @@ export function useBattle() {
         try {
             const res = await fetch ('/api/battle/start', { method: 'POST' });
             if (!res.ok) throw new Error(`Failed to start: ${res.status}`);
-            const data: BattleState = await res.json();
-
+            const data = await res.json();
             const dataWithSprites = await attachSprites(data);
             setBattle(dataWithSprites);
         } catch (err) {
@@ -42,7 +42,8 @@ export function useBattle() {
         try {
             const res = await fetch(`/api/battle/state/${id}`);
             if (!res.ok) throw new Error(`Failed to fetch state: ${res.status}`);
-            const data: BattleState = await res.json();
+            const raw = await res.json();
+            const data = parseBattleState(raw);
             const dataWithSprites = await attachSprites(data);
             setBattle(dataWithSprites);
         } catch (err) {
@@ -56,14 +57,16 @@ export function useBattle() {
         setLoading(true);
         setError(null);
         try {
-        const res = await fetch(`/api/battle/nextturn/${id}`, { method: 'POST' });
-        if (!res.ok) throw new Error(`Failed to advance turn: ${res.status}`);
-        const data: BattleState = await res.json();
-        setBattle(data);
+            const res = await fetch(`/api/battle/nextturn/${id}`, { method: 'POST' });
+            if (!res.ok) throw new Error(`Failed to advance turn: ${res.status}`);
+            const raw = await res.json();
+            const data = parseBattleState(raw);
+            const dataWithSprites = await attachSprites(data);
+            setBattle(dataWithSprites);
         } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
+            setError(err instanceof Error ? err.message : 'Unknown error');
         } finally {
-        setLoading(false);
+            setLoading(false);
         }
     }, []);
 
