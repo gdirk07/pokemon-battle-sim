@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useBattle } from './hooks/useBattle';
+import { useStreamerBot } from './hooks/useStreamerBot';
 import { ContestantsScreen } from './screens/ContestantsScreen';
 import { BattleScreen } from './screens/BattleScreen';
 import { VictoryScreen } from './screens/VictoryScreen';
@@ -7,16 +8,33 @@ import type { Screen } from '../../shared/types/battle';
 
 import './App.css'
 
+const isManual = import.meta.env.VITE_MODE === 'manual';
+const TURN_INTERNAL_MS = 8000;
+const VICTORY_DELAY_MS = 60000;
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>('idle');
-  const { battle, loading, error, generateTeams, fetchState, nextTurn } = useBattle();
+  const { 
+    battle,
+    displayedLog,
+    isPlaying,
+    isLoading,
+    error,
+    generateTeams,
+    fetchState,
+    nextTurn,
+    reset,
+  } = useBattle();
 
-  const handleGenerate = async() => {
-    await generateTeams();
-  }
+  useEffect(() => {
+    if (battle?.status === 'ended' && !isPlaying) {
+      const timer = setTimeout(() => setScreen('victory'), 3000);
+      return () => clearTimeout((timer));
+    }
+  }, [battle?.status, isPlaying])
+
   const handleStart = async() => {
     if (battle) {
-      battle?.log.push("Start Battle");
       await fetchState(battle.id);
       setScreen('battle');
     }  
@@ -24,11 +42,12 @@ export default function App() {
 
   const handleNextTurn = async () => {
     if (!battle) return;
-    await nextTurn(battle.id);
+    await nextTurn();
     if (battle.status === 'ended') setScreen('victory');
   }
 
   const handleReset = () => {
+    reset();
     setScreen('idle');
   }
 
@@ -43,8 +62,8 @@ export default function App() {
       {screen === 'idle' && (
         <ContestantsScreen
           battle={battle}
-          loading={loading}
-          onGenerate={handleGenerate}
+          loading={isLoading}
+          onGenerate={generateTeams}
           onStart={handleStart}
         />
       )}
@@ -52,7 +71,9 @@ export default function App() {
       {screen === 'battle' && battle && (
         <BattleScreen
           battle={battle}
-          loading={loading}
+          displayedLog={displayedLog}
+          isPlaying={isPlaying}
+          isLoading={isLoading}
           onNextTurn={handleNextTurn}
         />
       )}

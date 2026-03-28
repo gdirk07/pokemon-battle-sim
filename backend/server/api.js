@@ -26,9 +26,18 @@ router.get('/battle/state/:id', (req, res) => {
     res.json(battleState);
 });
 
-router.post('/battle/nextturn/:id', (req, res) => {
-    const battle = BattleManager.getBattle(req.params.id);
-    if (!battle) return res.status(404).send('Not found');
-    res.json(battle.nextTurn());
+router.post('/battle/nextturn/:id', async (req, res) => {
+    try {
+        const battle = BattleManager.getBattle(req.params.id);
+        if (!battle) return res.status(404).send('Not found');
+
+        battle.nextTurn();
+        await battle.waitForTurn();
+
+        res.json(battle.getState());
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Failed to advance turn');
+    }
 })
 module.exports = router;

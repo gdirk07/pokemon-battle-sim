@@ -9,7 +9,6 @@ class BattleManager {
     createBattle() {
         const id = `battle-${this.counter++}`;
         const battle = new BattleSession(id);
-
         this.battles.set(id, battle);
         return battle;
     }
@@ -18,8 +17,10 @@ class BattleManager {
         return this.battles.get(id);
     }
 
-    nextTurn() {
-        this.battles.nextTurn();
+    nextTurn(id) {
+        const battle = this.battles.get(id);
+        if (!battle) throw new Error(`Battle ${id} not found`);
+        battle.nextTurn();
     }
     removeBattle(id) {
         this.battles.delete(id);

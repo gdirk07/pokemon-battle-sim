@@ -17,18 +17,18 @@ export function ContestantsScreen({ battle, loading, onGenerate, onStart }: Prop
                         {battle.player1 && (
                             <img className="size-48 shrink-0" src={battle.player1.sprites?.officialArtwork ?? ''} alt={battle.player1.name} />
                         )}
-                        <h3>{battle.player1.level}</h3>
+                        <h3>{battle.player1.level ?? 100}</h3>
                         <h3>{battle.player1.name}</h3>
-                        <h3>{battle.player1.item}</h3>
+                        <h3>{battle.player1.item ?? 'None'}</h3>
                     </div>
                     <span>VS</span>
                     <div className="mx auto flex flex-col max-w-sm items-center">
                         {battle.player2 && (
                             <img className="size-48 shrink-0" src={battle.player2.sprites?.officialArtwork ?? ''} alt={battle.player2.name} />
                         )}
-                        <h3>{battle.player2.level}</h3>
+                        <h3>{battle.player2.level ?? 100}</h3>
                         <h3>{battle.player2.name}</h3>
-                        <h3>{battle.player2.item}</h3>
+                        <h3>{battle.player2.item ?? 'None'}</h3>
                     </div>
                 </div>
             ) : (
