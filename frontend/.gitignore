@@ -12,6 +12,8 @@ dist
 dist-ssr
 *.local
 
+# loggers
+backend/loggers/*
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

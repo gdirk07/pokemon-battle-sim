@@ -3,7 +3,14 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "sync-sprites": "node scripts/sync-sprites.js",
+    "predev": "npm run sync-sprites",
+    "prebuild": "npm run sync-sprites",
+    "dev": "npm run dev - backend && npm run dev - frontend",
+    "build": "cd frontend && npm run build",
+    "start": "cd backend && node index.js",
+    "build:start": "npm run build && npm run start",
+    "test": "vitest run --environment jsdom"
   },
   "keywords": [],
   "author": "",
@@ -15,5 +22,13 @@
     "node-fetch": "^3.3.2",
     "pokemon-showdown": "^0.11.10",
     "ws": "^8.19.0"
-  }
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "jsdom": "^29.0.1",
+    "vitest": "^4.1.2"
+  },
+  "type": "commonjs"
 }

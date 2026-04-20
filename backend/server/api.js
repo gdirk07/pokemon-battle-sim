@@ -19,6 +19,13 @@ router.post('/battle/start', async (req, res) => {
     }   
 });
 
+router.post('/battle/begin/:id', (req, res) => {
+    const battle = BattleManager.getBattle(req.params.id)
+    if (!battle) return res.status(404).send('Not found')
+    battle.beginBattle()
+    res.json({ ok: true })
+});
+
 router.get('/battle/state/:id', (req, res) => {
     const battle = BattleManager.getBattle(req.params.id);
     const battleState = battle.getState();

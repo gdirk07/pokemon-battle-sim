@@ -36,12 +36,17 @@ function parseMoveName(move: string): string {
         .replace(/^(\w+)(\w)/, (_, a, b) => a + b)
 }
 
+function parseSpecies(details: string): string {
+  return details?.split(',')[0]?.trim() ?? '';
+}
+
 export function parsePokemon(raw: Record<string, any>, existingMaxHp?: number): Pokemon {
   const { hp, maxHp, status } = parseCondition(raw.condition, existingMaxHp)
   const { level } = parseDetails(raw.details)
 
   return {
     name:   parseName(raw.ident),
+    species: parseSpecies(raw.details),
     hp,
     maxHp,
     level,
@@ -53,6 +58,7 @@ export function parsePokemon(raw: Record<string, any>, existingMaxHp?: number): 
     gender: raw.gender,
     teraType: raw.teraType || undefined,
     terastallized: raw.terastallized || false,
+    hasSubstitute: false,
   }
 }
 

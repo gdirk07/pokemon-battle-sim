@@ -1,3 +1,5 @@
+const { logUnknownEvent } = require('../loggers/unknownEventLogger');
+
 function parsePokemonName(ident) {
     return ident.split(': ')[1] ?? ident;
 }
@@ -46,13 +48,13 @@ function parseTurnLogLine(raw) {
 
             if (isNaN(current) || isNaN(max) || max === 0) return null;
 
-            const percentage = Math.round((current / max) * 100);
+            let percentage = Math.round((current / max) * 100);
             if (percentage === 0 && current > 0) percentage = 1;
             if (from.includes('Life Orb')) {
                 return `${pokemon} lost some of its HP! (${percentage}% HP remaining)`;
             }
             if (from.includes('Leech Seed')) {
-                return `${pokemon}'s health is sappyed by Leech Seed!`;
+                return `${pokemon}'s health is sapped by Leech Seed!`;
             }
             if (from.includes('Recoil')) {
                 return `${pokemon} took some damage from recoil!`;
@@ -63,13 +65,19 @@ function parseTurnLogLine(raw) {
             if (from.includes('Rocky Helmet')) {
                 return `${pokemon} took some damage from Rocky Helmet!`;
             }
+            if (from.includes('Salt Cure')) {
+                return `${pokemon} is hurt by Salt Cure!`;
+            }
+            if (from.includes('psn')) {
+                return `${pokemon} is hurt by poison!`;
+            }
             return `${pokemon} took damage! (${percentage}% HP remaining)`;
         }
 
         case '-heal': {
             const pokemon = parsePokemonName(parts[2]);
             const from = parts[4] ?? '';
-            const silent = parts[5] ?? '';
+            const misc = parts[5] ?? '';
 
             if (from.includes('item: Leftovers')) {
                 return `${pokemon} restored some HP from their Leftovers!`;
@@ -80,7 +88,10 @@ function parseTurnLogLine(raw) {
             if (from.includes('[silent]')) {
                 return;
             }
-            if (silent !== '') return;
+            if (from.includes('Wish')) {
+                return `${misc}'s wish came true!`;
+            }
+            if (misc && misc.includes('[silent]')) return;
             return `${pokemon} restored some HP!`;
         }
 
@@ -115,6 +126,15 @@ function parseTurnLogLine(raw) {
 
         case '-curestatus': {
             const pokemon = parsePokemonName(parts[2]);
+            const status = parts[3]
+
+            const statsMap = {
+                'slp': `${pokemon} woke up!`
+            }
+
+            if (statsMap[status]) return statsMap[status];
+            
+            logUnknownEvent(raw);
             return `${pokemon} was cured of its status condition!`;
         }
 
@@ -154,14 +174,21 @@ function parseTurnLogLine(raw) {
         }
 
         case '-sidestart': {
+            const pokemon = parsePokemonName(parts[2]);
             const effect = parts[3]?.replace('move: ', '');
             const sidestartMap = {
                 'Stealth Rock': 'Stealth Rock was set up!',
                 'Toxic Spikes': 'Toxic Spikes was set up!',
                 'Spikes': 'Spikes was set up!',
                 'Sticky Web': 'A sticky net was set up!',
+                'Light Screen': `${pokemon} put up a Light Screen!`,
+                'Reflect': `${pokemon} put up a mystical wall!`,
+                'Aurora Veil': `Aurora veil was set up on ${pokemon}'s side!`,
             }
-            return sidestartMap[effect] ?? `${effect} was set up!`;
+            if (sidestartMap[effect]) return sidestartMap[effect];
+
+            logUnknownEvent(raw);
+            return `${effect} was set up!`;
         }
 
         case '-sideend': {
@@ -192,6 +219,9 @@ function parseTurnLogLine(raw) {
                 return `${pokemon} recycled its ${item}!`;
             }
 
+            if (from.includes('ability: Harvest')) {
+                return `${pokemon} harvested one ${item}!`;
+            }
             return `${pokemon} used its ${item}!`;
         }
 
@@ -211,7 +241,8 @@ function parseTurnLogLine(raw) {
 
         case '-fail': {
             const pokemon = parsePokemonName(parts[2]);
-            const reason = parts[3];
+            const reason =  parts.length > 3 ? parts[3].replace('move: ', '') : '';
+            const misc = parts[4] ?? '';
 
             const reasonMap = {
                 unboost:    `${pokemon}'s stats can't go any lower!`,
@@ -226,9 +257,15 @@ function parseTurnLogLine(raw) {
                 immune:     `It doesn't affect ${pokemon}!`,
                 heal:       `${pokemon} doesn't need healing!`,
                 typechange: `${pokemon}'s type can't be changed!`,
+                Substitute: misc === '[weak]'
+                ? 'But it does not have enough HP left!'
+                : 'But it failed!',
             }
 
-            return reasonMap[reason] ?? `${pokemon}'s move failed!`;
+            if (reasonMap[reason]) return reasonMap[reason];
+
+            if (reason) logUnknownEvent(raw);
+            return `But it failed`;
         }
 
         case '-singleturn': {
@@ -242,21 +279,31 @@ function parseTurnLogLine(raw) {
                 'Focus Punch': `${pokemon} is tightening its focus`,
                 'Snatch': `${pokemon} is waiting for a move to snatch!`,
                 'Beak Blast': `${pokemon} started heating up its beak!`,
+                'Roost': `${pokemon} landed and took a rest!`,
             }
 
-            return singleturnMap[move] ?? `${pokemon} used ${move}!`;
+            if (singleturnMap[move]) return singleturnMap[move];
+
+            logUnknownEvent(raw);
+            return `${pokemon} used ${move}!`;
         }
 
         case '-singlemove': {
             const pokemon = parsePokemonName(parts[2]);
             const move = parts[3]?.replace('move: ', '') ?? '';
+            const misc = parts[4] ?? '';
+
+            if (misc === '[silent]') return;
 
             const singlemoveMap = {
                 'Destiny Bond': `${pokemon} is trying to take its attacker down with it!`,
                 'Grudge': `${pokemon} wants its attacker to bear a grudge!`,
             }
 
-            return singlemoveMap[move] ?? `${pokemon} used ${move}!`;
+            if (singlemoveMap[move]) return singlemoveMap[move];
+
+            logUnknownEvent(raw);
+            return `${pokemon} used ${move}!`;
         }
 
         case 'cant': {
@@ -273,15 +320,28 @@ function parseTurnLogLine(raw) {
                 recharge: `${pokemon} must recharge!`,
                 Disable:  `${pokemon}'s ${move} is disabled!`,
                 truant:   `${pokemon} is loafing around!`,
+                Truant: `${pokemon} is loading around!`,
                 imprison: `${pokemon} can't use the move!`,
                 taunt:    `${pokemon} is taunted and can't use ${move}!`,
                 gravity:  `${pokemon} can't use ${move} due to gravity!`,
                 heal:     `${pokemon} can't use ${move} due to the healing wish!`,
                 Taunt:  `${pokemon} cannot move due to the taunt!`,
                 'Queenly Majesty': `${of} cannot use ${move} around the Queenly Majesty!`,
+                Attract: `${pokemon} is immobilized by love!`,
             }
 
-            return cantMap[reason] ?? `${pokemon} couldn't move!`;
+            if (reason.includes("Heal Block")) {
+                if (move) {
+                    return `${pokemon} couldn't use ${move} due to Heal Block!`;
+                }
+                else {
+                    return `${pokemon} couldn't heal due to Heal Block!`;
+                }
+            }
+            if (cantMap[reason]) return cantMap[reason];
+
+            logUnknownEvent(raw);
+            return `${pokemon} couldn't move!`;
         }
 
         case '-notarget': {
@@ -308,40 +368,118 @@ function parseTurnLogLine(raw) {
                 'Tera Shell': `${pokemon} made its shell gleam! It's distorting type matchups!`,
                 'Substitute': `${pokemon}'s substitute took the damage!`,
                 'confusion': `${pokemon} is confused!`,
+                'Disguise': `${pokemon}'s disguise broke!`,
+                'Ice Face': '',
+                'Attract': misc 
+                ? `${pokemon} is in love with ${misc}!`
+                : `${pokemon} is in love!`,
+                'Synchronize': `${pokemon}'s Synchronize activates!`,
+                'Toxic Debris': `${pokemon} scattered poison spikes at the feet of the opposing team!`,
+                'Whirlpool': `${pokemon} was trapped in the vortex!`,
+                'Fickle Beam': `${pokemon} is going all out for this attack!`,
+                'Dancer': `${pokemon} takes the stage and dances!`,
             }
 
-            return activateMap[effect] ?? 'something activated!';
+            if (activateMap[effect]) return activateMap[effect];
+
+            logUnknownEvent(raw);
+            return 'something activated!';
         }
 
         case '-start': {
             const pokemon = parsePokemonName(parts[2]);
-            const effect = parts[3].replace('move: ', '');
+            const effect = parts[3]?.replace('move: ', '')
+                .replace('ability: ', '')
+            const fourth = parts[4] ?? '';
+            const fifth = parts[5] ?? '';
+
+            if (fourth && fourth === '[silent]') return;
 
             const startMap = {
                 'Encore': `${pokemon} fell for the encore!`,
-                'confusion': `${pokemon} is confused!`,
+                'confusion': `${pokemon} became confused!`,
                 'Substitute': `${pokemon} made a substitute!`,
                 'Leech Seed': `${pokemon} was seeded!`,
                 'Taunt': `${pokemon} fell for the taunt!`,
                 'Heal Block': `${pokemon} is prevented from healing!`,
-                'typechange': `${pokemon}'s type changed to ${parts[4]}!`,
+                'typechange': `${pokemon}'s type changed to ${fourth}!`,
+                'Yawn': `${pokemon} grew drowsy!`,
+                'Attract': fourth
+                    ? `${pokemon} is infatuated by the ${fourth}!`
+                    : `${pokemon} is infatuated!`,
+                'Disable': fourth && fifth 
+                    ? `${pokemon}'s ${fourth} was disabled by the ${fifth}`
+                    : `${pokemon}'s move was disabled!`,
+                'Curse': `${pokemon} was cursed!`,
+                'Nightmare': `${pokemon} fell into a nightmare!`,
+                'Torment': `${pokemon} is tormented!`,
+                'Aqua Ring': `${pokemon} surrounded itself with a veil of water!`,
+                'Ingrain': `${pokemon} planted its roots!`,
+                'Smack Down': `${pokemon} was knocked down!`,
+                'Power Trick': `${pokemon} switched its Attack and Defense!`,
+                'Charge': `${pokemon} is charging power!`,
+                'Laser Focus': `${pokemon} is focusing!`,
+                'Salt Cure': `${pokemon} became fully salt cured!`,
+                'Future Sight': `${pokemon} foresaw an attack!`,
+                'Flash Fire': `${pokemon}'s Flash Fire activated!`,
+                'Magnet Rise': `${pokemon} levitated with electromagnetism!`,
             }
-            
-            return startMap[effect] ?? 'something happened!';
+            if (startMap[effect]) return startMap[effect];
+
+            logUnknownEvent(raw);
+            return 'something happened!';
         }
 
         case '-end': {
             const pokemon = parsePokemonName(parts[2]);
             const effect = parts[3].replace('move: ', '');
+            const misc = parts[4] ?? '';
 
+            if (misc && misc === '[silent]') return;
             const endMap = {
                 'Encore': `${pokemon}'s encore ended!`,
                 'Substitute': `${pokemon}'s substitute broke!`,
                 'Taunt': `${pokemon} is no longer taunted!`,
                 'Heal Block': `${pokemon}'s Heal Block wore off!`,
+                'confusion': `${pokemon} snapped out of its confusion!`,
+                'Future Sight': `${pokemon} took the Future Sight attack!`,
+                'Disable': `${pokemon}'s move is no longer disabled!`,
+                'Magnet Rise': `${pokemon}'s electromagnetism wore off!`,
             }
 
-            return endMap[effect] ?? 'something ended!';
+            if (endMap[effect]) return endMap[effect];
+
+            logUnknownEvent(raw);
+            return 'something ended!';
+        }
+
+        case '-sethp': {
+            const pokemon = parsePokemonName(parts[2]);
+            const reason = parts[4].replace('move: ', '').replace('[from] ', '') ?? '';
+            const misc = parts[5] ?? '';
+
+            if (misc === '[silent]') return;
+            const reasonMap = {
+                'Pain Split': `${pokemon} shares its pain with the target!`,
+            }
+            if (reasonMap[reason]) return reasonMap[reason];
+
+            logUnknownEvent(raw);
+            return 'hp was set!';
+
+        }
+
+        case '-setboost': {
+            const pokemon = parsePokemonName(parts[2]);
+            const stat = parts[3] ?? '';
+            const level = parts[4] ?? '';
+            const move = parts[5] ?? '';
+
+            if (move && move.includes('Belly Drum')) {
+                return `${pokemon} cut its own HP and maximized its Attack!`;
+            }
+            logUnknownEvent(raw);
+            return 'a stat was boosted!'
         }
         case '-formechange': {
             const pokemon = parsePokemonName(parts[2]);
@@ -432,6 +570,7 @@ function parseTurnLog(entries) {
             text: parseTurnLogLine(entry.raw),
             hp: entry.hp ?? null,
             status: entry.status ?? null,
+            substitute: entry.substitute ?? null,
         }))
         .filter(entry => entry.text !== null);
 }

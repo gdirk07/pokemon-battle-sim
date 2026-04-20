@@ -31,17 +31,27 @@ class BattleSession {
         const p1Team = await buildRandomSet("p1");
         const p2Team = await buildRandomSet("p2");
         
+        const [p1Unpacked, p2Unpacked] = [Teams.unpack(p1Team), Teams.unpack(p2Team)];
+
         this.stream.write(`>start {"formatid":"gen9customgame"}`);
         this.stream.write(
             `>player p1 {"name":"Challenger 1", "team":"${p1Team}"}`);
         this.stream.write(
             `>player p2 {"name":"Challenger 2", "team":"${p2Team}"}`);
+
+        
+        this.state.p1DisplayItem = p1Unpacked[0]?.item ?? '';
+        this.state.p2DisplayItem = p2Unpacked[0]?.item ?? '';
+
+        this.listen();
+
+        return [p1Unpacked, p2Unpacked];
+
+    }
+
+    beginBattle() {
         this.stream.write(`>p1 team 1`);
         this.stream.write(`>p2 team 1`);
-        this.listen();
-        
-        return [Teams.unpack(p1Team), Teams.unpack(p2Team)];
-
     }
     listen() {
         (async () => {
@@ -67,7 +77,7 @@ class BattleSession {
 
     handleEvent(event) {
         this.state.log.push(event.raw);
-        const entry = { raw: event.raw, hp: null };
+        const entry = { raw: event.raw, hp: null, status: null, substitute: null };
 
         switch (event.type) {
             case 'turn':
@@ -107,6 +117,44 @@ class BattleSession {
                     this.state[key] = { ...this.state[key], condition: isFaint ? '0 fnt' : condition };
                 }
                 break;
+
+            case '-sethp': {
+                // |-sethp|p1a: Rotom|219/219|[from] move: Pain Split
+                const ident     = event.data[0]
+                const condition = event.data[1]
+                const clean     = condition === '0 fnt' ? '0 fnt' : condition?.split(' ')[0] ?? condition
+                const isFaint   = clean === '0 fnt'
+                const [hp, maxHp] = isFaint ? [0, null] : clean.split('/').map(Number)
+                const side      = ident?.startsWith('p1') ? 'p1' : 'p2'
+                const key       = side === 'p1' ? 'player1' : 'player2'
+
+                entry.hp = { side, hp, maxHp: isNaN(maxHp) ? null : maxHp }
+
+                if (this.state[key]) {
+                    this.state[key] = { ...this.state[key], condition: isFaint ? '0 fnt' : clean }
+                }
+                break;
+            }
+
+            case '-start': {
+                const ident = event.data[0];
+                const effect = event.data[1];
+                if (effect === 'Substitute') {
+                    const side = ident?.startsWith('p1') ? 'p1' : 'p2';
+                    entry.substitute = { side, active: true};
+                }
+                break;
+            }
+
+            case '-end': {
+                const ident = event.data[0];
+                const effect = event.data[1];
+                if (effect === 'Substitute') {
+                    const side = ident?.startsWith('p1') ? 'p1' : 'p2';
+                    entry.substitute = { side, active: false};
+                }
+                break;
+            }
 
             case '-status': {
                 const ident = event.data[0];
@@ -171,9 +219,15 @@ class BattleSession {
                 const activePokemon = request.side.pokemon.find(p => p.active) 
                                 ?? request.side.pokemon[0];
 
+                const displayItem = request.side.id === 'p1'
+                    ? this.state.p1DisplayItem
+                    : this.state.p2DisplayItem
+
+                const pokemon = { ...activePokemon, item: displayItem || activePokemon.item };
+
                 request.side.id === 'p1'
-                    ? this.state.player1 = activePokemon
-                    : this.state.player2 = activePokemon;
+                    ? this.state.player1 = pokemon
+                    : this.state.player2 = pokemon;
             }
 
             if (request.active?.[0]?.moves) {
@@ -219,11 +273,12 @@ class BattleSession {
             id: this.id,
             status: this.ended ? 'ended' : 'active',
             winner: this.state.winner,
+            turn: this.pendingTurn ?? this.state.turn,
             turnLog: parseTurnLog(this.state.turnLog),
         };
     }
 
-    waitForTurn(timeout = 5000) {
+    waitForTurn(timeout = 15000) {
         const targetTurn = this.state.turn + 1;
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => reject(new Error('Turn timeout')), timeout);
@@ -231,7 +286,7 @@ class BattleSession {
             const check = setInterval(() => {
 
                 const turnFlushed = this.state.turn >= targetTurn;
-                const battleEnded = this.ended && this.state.turnLog.Lenght > 0;
+                const battleEnded = this.ended && this.state.turnLog.Length > 0;
                 if (turnFlushed || battleEnded) {
                     clearInterval(check);
                     clearTimeout(timer);

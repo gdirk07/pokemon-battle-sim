@@ -1,8 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { fetchBattleSprites } from '../services/pokeapi';
+import { getSprites } from '../services/sprites';
 import type { BattleState, TurnLogEntry } from '../../../shared/types/battle';
 import { parseBattleState } from '../services/battleParser';
-import { genderForms } from '../../../shared/pokeApi/pokemonFilter';
 
 const TURN_ENTRY_DELAY_MS = 1200;
 
@@ -13,11 +12,13 @@ function mergeStateWithSprites(prev: BattleState, next: BattleState): BattleStat
             ...next.player1, 
             sprites: prev.player1.sprites,
             status: next.player1.status ?? prev.player1.status,
+            hasSubstitute: prev.player1.hasSubstitute ?? false,
         },
         player2: { 
             ...next.player2, 
             sprites: prev.player2.sprites,
             status: next.player2.status ?? prev.player2.status,
+            hasSubstitute: prev.player2.hasSubstitute ?? false,
         },
     };
 }
@@ -40,87 +41,124 @@ export function useBattle() {
     const playTurnLog = useCallback((
         entries: TurnLogEntry[],
         turnResult: BattleState,
-        onComplete: () => void
+        initialState: BattleState,
     ) => {
         setDisplayedLog([]);
         setIsPlaying(true);
 
-        const playbackState = { current: battleRef.current };
+        const playbackState = { 
+            current: {
+                ...initialState,
+                player1: { ...initialState.player1, hasSubstitute: initialState.player1.hasSubstitute ?? false },
+                player2: { ...initialState.player2, hasSubstitute: initialState.player2.hasSubstitute ?? false }, 
+            }
+        };
 
         entries.forEach((entry, i) => {
             playbackRef.current = setTimeout(() => {
-                setDisplayedLog(prev => [...prev, entry.text]);
+                console.log(`entry ${i}/${entries.length - 1}:`, JSON.stringify(entry))
+                try {
+                    setDisplayedLog(prev => [...prev, entry.text]);
 
-                if (entry.hp || entry.status) {
-                    const prev = playbackState.current;
-                    if (!prev) return;
-                    
-                    let next = { ...prev };
-                    if (entry.hp) {
-                        const isP1 = entry.hp.side === 'p1';
-
-                        next = {
-                            ...prev,
-                            player1: isP1 ? {
-                                ...prev.player1,
-                                hp: entry.hp.hp,
-                                maxHp: entry.hp.maxHp ?? prev.player1.maxHp,
-                            } : prev.player1,
-                            player2: !isP1 ? {
-                                ...prev.player2,
-                                hp: entry.hp.hp,
-                                maxHp: entry.hp.maxHp ?? prev.player2.maxHp,
-                            } : prev.player2,
+                    if (entry.hp || entry.status || entry.substitute) {
+                        const prev = playbackState.current;
+                        if (!prev) {
+                            console.error('playbackState.current is null/undefined at entry', i);
+                            return
                         }
+                        
+                        let next = { ...prev };
+                        if (entry.hp) {
+                            const isP1 = entry.hp.side === 'p1';
+
+                            next = {
+                                ...prev,
+                                player1: isP1 ? {
+                                    ...prev.player1,
+                                    hp: entry.hp.hp,
+                                    maxHp: entry.hp.maxHp ?? prev.player1.maxHp,
+                                } : prev.player1,
+                                player2: !isP1 ? {
+                                    ...prev.player2,
+                                    hp: entry.hp.hp,
+                                    maxHp: entry.hp.maxHp ?? prev.player2.maxHp,
+                                } : prev.player2,
+                            }
+                        }
+
+                        if (entry.status) {
+                            const isP1 = entry.status.side === 'p1';
+                            next = {
+                                ...next,
+                                player1: isP1 ? { ...next.player1, status: entry.status.value ?? undefined } : next.player1,
+                                player2: !isP1 ? { ...next.player2, status: entry.status.value ?? undefined } : next.player2,
+                            }
+                        }
+                        
+                        if (entry.substitute) {
+                            const isP1 = entry.substitute.side === 'p1';
+                            next = {
+                                ...next,
+                                player1: isP1 ? {
+                                    ...next.player1,
+                                    hasSubstitute: entry.substitute.active
+                                } : next.player1,
+                                player2: !isP1? {
+                                    ...next.player2,
+                                    hasSubstitute: entry.substitute.active
+                                } : next.player2,
+                            }
+                        }
+
+                        playbackState.current = next;
+                        battleRef.current = next;
+                        setBattle(next);
                     }
 
-                    if (entry.status) {
-                        const isP1 = entry.status.side === 'p1';
-                        next = {
-                            ...next,
-                            player1: isP1 ? { ...next.player1, status: entry.status.value ?? undefined } : next.player1,
-                            player2: !isP1 ? { ...next.player2, status: entry.status.value ?? undefined } : next.player2,
+                    if (i === entries.length - 1) {
+                        const current = playbackState.current;
+                        const finalState: BattleState = {
+                            ...turnResult,
+                            player1: {
+                                ...turnResult.player1,
+                                hasSubstitute: current?.player1.hasSubstitute ?? false,
+                            },
+                            player2: {
+                                ...turnResult.player2,
+                                hasSubstitute: current?.player2.hasSubstitute ?? false,
+                            },
                         }
-                    }
-                    
-                    playbackState.current = next;
-                    battleRef.current = next;
-                    setBattle(next);
-                }
 
-                if (i === entries.length - 1) {
-                    battleRef.current = turnResult;
-                    setBattle(turnResult);
-                    setIsPlaying(false);
-                    onComplete();
+                        battleRef.current = finalState;
+                        setBattle(finalState);
+                        setIsPlaying(false);
+                    }
+                } catch (err) {
+                    console.error(`CRASH at entry ${i}:`, JSON.stringify(entry), err)
                 }
             }, i * TURN_ENTRY_DELAY_MS);
         });
     }, []);
 
-    const attachSprites = async (battleData: BattleState): Promise<BattleState> => {
-        let pokemon1 = genderForms(battleData.player1.name, battleData.player1.gender);
-        let pokemon2 = genderForms(battleData.player2.name, battleData.player2.gender);
-        const { pokemon1Sprites, pokemon2Sprites } = await fetchBattleSprites(
-            pokemon1,
-            pokemon2,
-        );
-        return {
-            ...battleData,
-            player1: { ...battleData.player1, sprites: pokemon1Sprites },
-            player2: { ...battleData.player2, sprites: pokemon2Sprites },
-        };
-    }
-
     const generateTeams = useCallback(async() => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch ('/api/battle/start', { method: 'POST' });
-            if (!res.ok) throw new Error(`Failed to start: ${res.status}`);
-            const data = await res.json();
-            const dataWithSprites = await attachSprites(data);
+            const startRes = await fetch ('/api/battle/start', { method: 'POST' });
+            if (!startRes.ok) throw new Error(`Failed to start: ${startRes.status}`);
+            const { id } = await startRes.json();
 
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const stateRes = await fetch(`/api/battle/state/${id}`);
+            if (!stateRes.ok) throw new Error(`Failed to fetch state: ${stateRes.status}`);
+            const raw = await stateRes.json();
+            const data = parseBattleState(raw, id);
+            const dataWithSprites = {
+                ...data,
+                player1: { ...data.player1, sprites: getSprites(data.player1.species) },
+                player2: { ...data.player2, sprites: getSprites(data.player2.species) },
+            }
             battleRef.current = dataWithSprites;
             setBattle(dataWithSprites);
             setDisplayedLog([]);
@@ -128,6 +166,16 @@ export function useBattle() {
             setError(err instanceof Error ? err.message: 'Unknown error');
         } finally {
             setIsLoading(false);
+        }
+    }, []);
+
+    const beginBattle = useCallback(async() => {
+        const current = battleRef.current;
+        if (!current) return;
+        try {
+            await fetch(`/api/battle/begin/${current.id}`, { method: 'POST' });
+        } catch (err) {
+            console.error('Failed to begin battle:', err);
         }
     }, []);
 
@@ -144,9 +192,8 @@ export function useBattle() {
             const raw = await res.json();
             const data = parseBattleState(raw, current.id, current);
             const merged = mergeStateWithSprites(current, data);
-
             setIsLoading(false);
-            playTurnLog(data.log, merged, () => setBattle(merged));
+            playTurnLog(data.log, merged, current);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Unknown error');
             setIsLoading(false);
@@ -191,6 +238,7 @@ export function useBattle() {
         isLoading, 
         error, 
         generateTeams, 
+        beginBattle,
         nextTurn,
         fetchState,
         reset, 

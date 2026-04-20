@@ -10,7 +10,6 @@ export interface PokemonSprites {
     officialArtwork: string | null,
     frontDefault: string | null,
     backDefault: string | null,
-    reverseFrontDefault: string | null,
 };
 
 export interface HpChange {
@@ -25,7 +24,7 @@ export interface StatusChange {
 };
 export interface Pokemon {
     name: string,
-    species?: string,
+    species: string,
     ability?: string,
     level: number,
     item?: string,
@@ -38,12 +37,19 @@ export interface Pokemon {
     stats?: {},
     teraType?: string,
     terastallized: boolean,
+    hasSubstitute: boolean,
 };
+
+export interface SubstituteChange {
+    side: 'p1' | 'p2',
+    active: boolean,
+}
 
 export interface TurnLogEntry {
     text: string,
     hp: HpChange | null,
     status: StatusChange | null,
+    substitute: SubstituteChange,
 };
 export interface BattleState {
     id: string,

@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
@@ -7,6 +8,9 @@ const api = require('./server/api');
 const { initSocket } = require('./server/socket');
 
 const app = express();
+
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.path}`)
   next()
