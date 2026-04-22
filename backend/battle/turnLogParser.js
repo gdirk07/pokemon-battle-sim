@@ -129,7 +129,8 @@ function parseTurnLogLine(raw) {
             const status = parts[3]
 
             const statsMap = {
-                'slp': `${pokemon} woke up!`
+                'slp': `${pokemon} woke up!`,
+                'frz': `${pokemon} managed to thaw out!`,
             }
 
             if (statsMap[status]) return statsMap[status];
@@ -308,7 +309,7 @@ function parseTurnLogLine(raw) {
 
         case 'cant': {
             const pokemon = parsePokemonName(parts[2]);
-            const reason = parts[3]?.replace('ability: ', '') ?? '';
+            const reason = parts[3]?.replace('ability: ', '').replace('move: ', '') ?? '';
             const move = parts[4] ? formatMoveName(parts[4]) : null;
             const of = parts[5] ? parsePokemonName(parts[5]) : null;
 
@@ -369,7 +370,7 @@ function parseTurnLogLine(raw) {
                 'Substitute': `${pokemon}'s substitute took the damage!`,
                 'confusion': `${pokemon} is confused!`,
                 'Disguise': `${pokemon}'s disguise broke!`,
-                'Ice Face': '',
+                'Ice Face': `${pokemon}'s ice head took the attack!`,
                 'Attract': misc 
                 ? `${pokemon} is in love with ${misc}!`
                 : `${pokemon} is in love!`,
@@ -378,6 +379,10 @@ function parseTurnLogLine(raw) {
                 'Whirlpool': `${pokemon} was trapped in the vortex!`,
                 'Fickle Beam': `${pokemon} is going all out for this attack!`,
                 'Dancer': `${pokemon} takes the stage and dances!`,
+                'Destiny Bond': `${pokemon} took its foe with it!`,
+                'Heal Bell': `${pokemon}'s bell chimed!`,
+                'Psychic Terrain': `The battlefield got weird!`,
+                'Cud Chew': `${pokemon}'s Cud Chew triggered the effect of the berry again!`,
             }
 
             if (activateMap[effect]) return activateMap[effect];
@@ -445,6 +450,7 @@ function parseTurnLogLine(raw) {
                 'Future Sight': `${pokemon} took the Future Sight attack!`,
                 'Disable': `${pokemon}'s move is no longer disabled!`,
                 'Magnet Rise': `${pokemon}'s electromagnetism wore off!`,
+                'Slow Start': `${pokemon} finally got it together!`,
             }
 
             if (endMap[effect]) return endMap[effect];
