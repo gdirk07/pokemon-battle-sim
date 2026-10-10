@@ -16,7 +16,7 @@ dist-ssr
 frontend/public/sprites/
 
 # loggers
-backend/loggers/*
+backend/loggers/unknown-events.log
 
 # Editor directories and files
 .vscode/*
