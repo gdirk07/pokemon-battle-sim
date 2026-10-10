@@ -1,6 +1,9 @@
 {
   "name": "pb-express",
   "version": "1.0.0",
+  "workspaces": [
+    "frontend"
+  ],
   "main": "index.js",
   "scripts": {
     "sync-sprites": "node scripts/sync-sprites.js",
