@@ -1,18 +1,18 @@
-export const IS_MANUAL = import.meta.env.VITE_MODE === 'manual';
-
 export const SHOWDOWN_SPRITES_LOCAL = '/sprites';
 export const SHOWDOWN_SPRITES_CDN = 'https://play.pokemonshowdown.com/sprites';
 
 export const SHOWDOWN_SPRITES_BASE = SHOWDOWN_SPRITES_LOCAL;
-export const SUBSTITUTE_FRONT       = `${SHOWDOWN_SPRITES_BASE}/substitutes/substitute.png`
-export const SUBSTITUTE_BACK        = `${SHOWDOWN_SPRITES_BASE}/substitutes/substitute-back.png`
+export const SUBSTITUTE_FRONT = `${SHOWDOWN_SPRITES_BASE}/substitutes/substitute.png`;
+export const SUBSTITUTE_BACK = `${SHOWDOWN_SPRITES_BASE}/substitutes/substitute-back.png`;
 
 export const BETTING_MS = 30000;
 export const TURN_INTERNAL_MS = 8000;
 export const VICTORY_DELAY_MS = 60000;
+export const VICTORY_SCREEN_DELAY_MS = 3000;
+
 
 export const APP_W = '400px';
-export const APP_H = '300px';
+export const APP_H = '350px';
 
 // Some pokemon HOME sprites are reversed
 export const FLIPPED_HOME_SPRITES = new Set([

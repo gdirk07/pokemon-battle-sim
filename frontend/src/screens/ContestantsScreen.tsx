@@ -1,4 +1,3 @@
-import { IS_MANUAL } from "../config/constants";
 import type { BattleState } from "../../../shared/types/battle";
 import { PokemonSprites } from "../components/PokemonSprite/PokemonSprite";
 
@@ -6,11 +5,12 @@ interface Props {
     battle: BattleState | null,
     loading: boolean,
     countdown: number | null,
+    isManual: boolean,
     onGenerate: () => void,
     onStart: () => void,
 };
 
-export function ContestantsScreen({ battle, loading, countdown, onGenerate, onStart }: Props) {
+export function ContestantsScreen({ battle, loading, countdown, isManual, onGenerate, onStart }: Props) {
     return (
         <div className="w-full h-full select-none bg-black/60 backdrop-blur-sm p-2 border border-white/10">
             {/* Header */}
@@ -78,7 +78,7 @@ export function ContestantsScreen({ battle, loading, countdown, onGenerate, onSt
                     Generating matchup...
                 </p>
             )}
-            {IS_MANUAL && (
+            {isManual && (
                 <div className="flex gap-2 mt-3">
                     <button
                         className="flex-1 text-[10px] py-1 bg-white/10 hover:bg-white/20 text-white rounded-lg disabled:opacity-40 transition-colors"
@@ -87,14 +87,6 @@ export function ContestantsScreen({ battle, loading, countdown, onGenerate, onSt
                     >
                         {loading ? 'Generating...' : battle ? 'Start Battle' : 'Generate'}
                     </button>
-                    {battle && countdown !== null && (
-                        <button
-                            className="text-[10px] px-3 py-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 rounded-lg transition-colors"
-                            onClick={onStart}
-                        >
-                            Skip
-                        </button>
-                    )}
                 </div>
             )}
         </div>

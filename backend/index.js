@@ -1,31 +1,28 @@
 const path = require('path');
 const express = require('express');
 const http = require('http');
-const cors = require('cors');
 
 const config = require('./config');
-const api = require('./server/api');
-const { initSocket } = require('./server/socket');
+const createApi = require('./server/api');
+const hub = require('./server/socket');
+const { BattleFlow } = require('./battle/BattleFlow');
+const { StreamerBotClient, NullStreamerBot } = require('./integrations/StreamerBotClient');
 
 const app = express();
-
+app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`)
-  next()
-})
-app.use(cors({
-    origin: 'http://localhost:5173',
-}));
-app.use(express.json());
+const streamerBot = config.MODE === 'streamerbot'
+    ? new StreamerBotClient(config.STREAMERBOT)
+    : new NullStreamerBot();
 
-app.use('/api', api);
+const battleFlow = new BattleFlow({ hub, streamerBot, config }).attach();
+app.use('/api', createApi(battleFlow));
 
 const server = http.createServer(app);
-initSocket(server);
+hub.attach(server);
 
-const PORT = config.PORT;
-server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+server.listen(config.PORT, () => {
+    console.log(`Server running on port ${config.PORT} (mode: ${config.MODE})`);
+    streamerBot.connect();
 });

@@ -14,12 +14,15 @@ const FOLDERS = [
     'substitutes',
 ];
 
-function get(url) {
+function get(url, depth = 0, maxDepth = 10) {
+    if (depth > maxDepth) {
+        return Promise.reject(new Error(`Too many redirects (exceeded ${maxDepth} attempts)`));
+    }
     return new Promise((resolve, reject) => {
         const client = url.startsWith('https') ? https : http;
         client.get(url, res => {
             if (res.statusCode === 301 || res.statusCode === 302) {
-                return resolve(get(res.headers.location));
+                return resolve(get(res.headers.location, depth + 1, maxDepth));
             }
             const chunks = [];
             res.on('data', chunk => chunks.push(chunk));

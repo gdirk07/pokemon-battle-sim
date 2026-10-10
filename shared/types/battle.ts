@@ -49,7 +49,7 @@ export interface TurnLogEntry {
     text: string,
     hp: HpChange | null,
     status: StatusChange | null,
-    substitute: SubstituteChange,
+    substitute: SubstituteChange | null,
 };
 export interface BattleState {
     id: string,
@@ -65,4 +65,24 @@ export type Screen =
     'idle' |
     'battle' |
     'victory';
-    
+
+export type Phase = 'idle' | 'betting' | 'fighting' | 'victory';
+
+// Raw state as produced by the backend (Showdown request objects + turnLog); run it through parseBattleState().
+export type RawBattleState = Record<string, any>;
+
+export interface Bets { p1Total: number, p2Total: number };
+
+export type Mode = 'manual' | 'streamerbot';
+
+export type ServerMessage =
+    | { type: 'snapshot', mode: Mode, phase: Phase, deadline: number | null, bets: Bets, seq: number, battleId: string | null, state: RawBattleState | null }
+    | { type: 'phase', phase: Phase, deadline: number | null, state?: RawBattleState }
+    | ({ type: 'bets' } & Bets)
+    | { type: 'turn', seq: number, battleId: string, state: RawBattleState };
+
+export type Command = 'start' | 'begin' | 'next' | 'reset';
+
+export type ClientMessage =
+    | { type: 'ack', seq: number, durationMs?: number }
+    | { type: 'command', name: Command };

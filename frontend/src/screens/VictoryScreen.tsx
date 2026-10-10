@@ -1,13 +1,13 @@
 import type { BattleState } from "../../../shared/types/battle";
 import { PokemonSprites } from "../components/PokemonSprite/PokemonSprite";
-import { IS_MANUAL } from "../config/constants";
 
 interface Props {
     battle: BattleState,
+    isManual: boolean,
     onReset: () => void,
 }
 
-export function VictoryScreen({ battle, onReset }: Props) {
+export function VictoryScreen({ battle, isManual, onReset }: Props) {
     const winner = battle.winner === 'player1' ? battle.player1 : battle.player2;
     const turns = battle.turn > 1 ? 'turns' : 'turn';
     return (
@@ -37,13 +37,15 @@ export function VictoryScreen({ battle, onReset }: Props) {
                 <span className="text-[10px] text-gray-300 uppercase tracking-widest">
                     Getting ready for the next battle...
                 </span>
-            </div>
-            <div>
-                {IS_MANUAL && (
-                    <button onClick={onReset}>
-                        New Battle
-                    </button>
-                )} 
+                <span>
+                    {isManual && (
+                        <button className="text-[10px] px-2 py-0.5 bg-blue-500 text-white rounded disabled:opacity-50"
+                            onClick={onReset}
+                        >
+                            New Battle
+                        </button>
+                    )} 
+                </span>
             </div>
         </div>
     )

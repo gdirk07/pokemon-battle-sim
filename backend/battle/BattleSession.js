@@ -25,6 +25,8 @@ class BattleSession {
         this.turnLogBuffer = [];
         this.validMoves = { p1: [1, 2, 3, 4], p2: [1, 2, 3, 4] };
         this.pendingTurn = null;
+        this.waiters = [];
+        this.turnInFlight = false;
     }
 
     async startBattle() {
@@ -203,7 +205,8 @@ class BattleSession {
         if (event.type !== 'turn' && event.type !== 'win') {
             this.turnLogBuffer.push(entry);
         }
-        console.log(`[${this.id}]`, event.type, event.data);        
+        console.log(`[${this.id}]`, event.type, event.data);
+        this._notify();        
     }
 
     handleRequest(event) {
@@ -267,6 +270,64 @@ class BattleSession {
         this.stream.write(`>p2 move ${move2}`);
     }
 
+    _notify() {
+        if (this.waiters.length === 0) return;
+        for (const w of [...this.waiters]) {
+            if (w.predicate()) w.done();
+        }
+    }
+
+    _waitFor(predicate, timeout, label) {
+        if (predicate()) return Promise.resolve();
+        return new Promise((resolve, reject) => {
+            const waiter = {
+                predicate,
+                done: () => { cleanup(); resolve(); },
+            };
+            const timer = setTimeout(() => { cleanup(); reject(new Error(label)); }, timeout);
+            const cleanup = () => {
+                clearTimeout(timer);
+                this.waiters = this.waiters.filter(w => w !== waiter);
+            };
+            this.waiters.push(waiter);
+        });
+    }
+
+    // Both sides' team-preview requests have been processed (state.player1/2 populated)
+    waitUntilReady(timeout = 5000) {
+        return this._waitFor(
+            () => Boolean(this.state.player1 && this.state.player2),
+            timeout, 'Battle setup timeout');
+    }
+
+    // Showdown has emitted the first |turn| (switch-ins done, ready for moves)
+    waitUntilTurnStarted(timeout = 5000) {
+        return this._waitFor(() => this.pendingTurn !== null || this.ended, timeout, 'Battle start timeout');
+    }
+
+    // Submit both sides' moves and resolve with the state once the turn is flushed.
+    async playTurn(timeout = 15000) {
+        if (this.turnInFlight) throw new Error('Turn already in flight');
+        if (this.ended) throw new Error('Battle already ended');
+        this.turnInFlight = true;
+        try {
+            const target = this.state.turn + 1;
+            const flushed = this._waitFor(
+                () => this.state.turn >= target || (this.ended && this.state.turnLog.length > 0),
+                timeout, 'Turn timeout');
+            this.nextTurn();
+            await flushed;
+            return this.getState();
+        } finally {
+            this.turnInFlight = false;
+        }
+    }
+
+    dispose() {
+        this.waiters = [];
+        try { this.stream.destroy?.(); } catch (_) { /* already closed */ }
+    }
+
     getState() {
         return {
             ...this.state,
@@ -286,7 +347,7 @@ class BattleSession {
             const check = setInterval(() => {
 
                 const turnFlushed = this.state.turn >= targetTurn;
-                const battleEnded = this.ended && this.state.turnLog.Length > 0;
+                const battleEnded = this.ended && this.state.turnLog.length > 0;
                 if (turnFlushed || battleEnded) {
                     clearInterval(check);
                     clearTimeout(timer);

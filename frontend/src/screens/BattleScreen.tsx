@@ -3,17 +3,17 @@ import type { BattleState } from "../../../shared/types/battle"
 import { PokemonSprites } from "../components/PokemonSprite/PokemonSprite";
 import { HPBar } from "../components/BattleStatus/HPBar";
 import { StatusDot } from "../components/BattleStatus/StatusDot";
-import { IS_MANUAL } from "../config/constants";
 
 interface Props {
   battle: BattleState,
   displayedLog: string[],
   isPlaying: boolean,
   isLoading: boolean,
+  isManual: boolean,
   onNextTurn: () => void,
 }
 
-export function BattleScreen({ battle, displayedLog, isPlaying, isLoading, onNextTurn }: Props) {
+export function BattleScreen({ battle, displayedLog, isPlaying, isLoading, isManual, onNextTurn }: Props) {
     const logEndRef= useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -95,7 +95,7 @@ export function BattleScreen({ battle, displayedLog, isPlaying, isLoading, onNex
             {/* Turn + manual button */}
             <div className="flex items-center justify-between px-2 pb-1">
                 <span className="text-[10px] text-gray-400">Turn {battle.turn}</span>
-                {IS_MANUAL && (
+                {isManual && (
                     <button
                         className="text-[10px] px-2 py-0.5 bg-blue-500 text-white rounded disabled:opacity-50"
                         onClick={onNextTurn}
