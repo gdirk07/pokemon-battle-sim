@@ -1,7 +1,7 @@
 const { BattleStream } = require('pokemon-showdown');
 const { parseOutput } = require('./parser');
 const { parseTurnLog } = require('./turnLogParser');
-const { buildRandomSet } = require('./team-builder');
+const { buildSet } = require('./team-builder');
 const { Teams } = require('pokemon-showdown');
 
 class BattleSession {
@@ -29,9 +29,10 @@ class BattleSession {
         this.turnInFlight = false;
     }
 
-    async startBattle() {
-        const p1Team = await buildRandomSet("p1");
-        const p2Team = await buildRandomSet("p2");
+    // Omitted species = random Pokémon for that side.
+    async startBattle({ p1Species, p2Species } = {}) {
+        const p1Team = buildSet(p1Species);
+        const p2Team = buildSet(p2Species);
         
         const [p1Unpacked, p2Unpacked] = [Teams.unpack(p1Team), Teams.unpack(p2Team)];
 

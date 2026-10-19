@@ -106,7 +106,6 @@ export const FLIPPED_HOME_SPRITES = new Set([
     'mewtwo',
     'tatsugiri-droopy',
     'tatsugiri-stretchy',
-    'oinkologne-f',
     'oinkologne',
     'typhlosion-hisui',
     'necrozma-dawnwings',

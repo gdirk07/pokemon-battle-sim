@@ -4,7 +4,6 @@
   "workspaces": [
     "frontend"
   ],
-  "main": "index.js",
   "scripts": {
     "sync-sprites": "node scripts/sync-sprites.js",
     "predev": "npm run sync-sprites",
@@ -16,27 +15,26 @@
     "start": "cd backend && node --env-file=.env.production index.js",
     "build:start": "npm run build && npm run start",
     "test": "vitest run",
-    "test:backend": "vitest run --dir backend",
-    "test:frontend": "vitest run --dir frontend",
+    "test:backend": "vitest run --project backend",
+    "test:frontend": "vitest run --project frontend",
     "test:watch": "vitest",
-    "test:watch:backend": "vitest --dir backend",
-    "test:watch:frontend": "vitest --dir frontend"
+    "test:e2e": "npm run build && playwright test"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "cors": "^2.8.6",
     "express": "^5.2.1",
-    "node-fetch": "^3.3.2",
     "pokemon-showdown": "^0.11.10",
-    "ws": "^8.19.0"
+    "ws": "^8.22.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^26.6.5",
     "concurrently": "^9.2.5",
     "jsdom": "^29.0.1",
     "vitest": "^4.1.2"

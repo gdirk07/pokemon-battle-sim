@@ -3,7 +3,9 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
     test: {
         globals: true,
-        environment: 'jsdom',
-        include: ['**/__tests__/**/*.test.js', '**/__test__/**/*.test.js'],
+        projects: [
+            { extends: true, test: { name: 'backend', root: './backend', environment: 'node', include: ['**/__test__/**/*.test.js'] } },
+            './frontend',
+        ],
     },
 });

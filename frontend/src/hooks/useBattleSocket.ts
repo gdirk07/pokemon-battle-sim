@@ -7,7 +7,9 @@ import { getSprites } from '../services/sprites';
 import { applyEntry, finalizeTurn, mergeStateWithSprites } from '../services/battleReducer';
 
 // The overlay owns presentation time. Keep in sync with backend TURN_ENTRY_MS (only used for its stuck-overlay watchdog).
-export const TURN_ENTRY_DELAY_MS = 1200;
+// e2e tests shorten playback by setting window.__PB_TURN_ENTRY_MS before the page loads.
+export const TURN_ENTRY_DELAY_MS: number =
+    (window as Window & { __PB_TURN_ENTRY_MS?: number }).__PB_TURN_ENTRY_MS ?? 1200;
 
 const RECONNECT_MIN_MS = 1000;
 const RECONNECT_MAX_MS = 5000;

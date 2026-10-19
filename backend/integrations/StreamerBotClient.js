@@ -76,7 +76,7 @@ class StreamerBotClient extends EventEmitter {
             if (!this.stopped) this.retryTimer = setTimeout(() => this._open(), this.retryMs);
         });
 
-        ws.on('error', (err) => { this.log.warn?.('[streamerbot] ws error:', err.message); });
+        ws.on('error', (err) => { this.log.warn?.('[streamerbot] ws error:', err); });
     }
 
     _subscribe() {

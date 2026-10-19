@@ -20,6 +20,12 @@ module.exports = {
     // Extra time on top of (entries * TURN_ENTRY_MS) before the overlay is considered stuck
     ACK_SLACK_MS: int(process.env.ACK_SLACK_MS, 20000),
 
+    // Allow start() to take chosen species ({ p1Species, p2Species }) instead of random ones.
+    // Defaults to manual mode only (dev/testing). Set PB_ALLOW_SPECIES_PICK=true to enable it for Streamer.bot.
+    ALLOW_SPECIES_PICK: process.env.PB_ALLOW_SPECIES_PICK === undefined
+        ? MODE === 'manual'
+        : process.env.PB_ALLOW_SPECIES_PICK === 'true',
+
     // null = wait for PB_NEXT_TURN / manual "next". A number = auto-advance that long after each ack.
     AUTO_ADVANCE_MS: process.env.AUTO_ADVANCE_MS === undefined ? null : int(process.env.AUTO_ADVANCE_MS, null),
 

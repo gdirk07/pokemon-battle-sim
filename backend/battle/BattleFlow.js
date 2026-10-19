@@ -1,4 +1,5 @@
 const BattleManager = require('./BattleManager');
+const { resolveSpecies } = require('./team-builder');
 
 const PHASE = Object.freeze({
     IDLE: 'idle',
@@ -48,26 +49,28 @@ class BattleFlow {
     attach() {
         this.hub.on('connection', (ws) => this._onConnection(ws));
         this.hub.on('ack', (msg) => this._onAck(msg));
-        this.hub.on('command', (msg) => this.command(msg.name));
+        this.hub.on('command', (msg) => this.command(msg.name, msg.args));
         this.sb.on('action', (name, data) => this._onStreamerBotAction(name, data));
         return this;
     }
 
     // ---------- inputs (Streamer.bot, overlay buttons, HTTP) ----------
 
-    async command(name) {
+    async command(name, args = {}) {
         switch (name) {
-            case 'start':  return this.start();
+            case 'start':  return this.start(args);
             case 'begin':  return this.beginFighting();
             case 'next':   return this.advance();
             case 'reset':  return this.reset();
+            case 'status': return this.status();
             default:       return { ok: false, reason: `unknown command ${name}` };
         }
     }
 
     _onStreamerBotAction(name, data) {
         switch (name) {
-            case 'PB_START_BATTLE': return void this.start();
+            // Species args are honoured only when ALLOW_SPECIES_PICK is on; otherwise start() rejects them.
+            case 'PB_START_BATTLE': return void this.start({ p1Species: data?.p1Species, p2Species: data?.p2Species });
             case 'PB_NEXT_TURN':    return void this.advance();
             case 'PB_BET_UPDATE':   return this.setBets(data.p1Total, data.p2Total);
         }
@@ -75,16 +78,22 @@ class BattleFlow {
 
     // ---------- lifecycle ----------
 
-    async start() {
+    /** @param {{ p1Species?: string, p2Species?: string }} [picks] omitted/empty side = random */
+    async start(picks = {}) {
         if (this.busy || this.phase === PHASE.BETTING || this.phase === PHASE.FIGHTING) {
             return { ok: false, reason: `busy (${this.phase})` };
         }
+        // Validate before tearing anything down, so a typo doesn't blank the current screen.
+        let resolved;
+        try { resolved = this._resolvePicks(picks); }
+        catch (err) { return { ok: false, reason: err.message }; }
+
         this.busy = true;
         try {
             this._teardown();
 
             const battle = this.manager.createBattle();
-            await battle.startBattle();
+            await battle.startBattle(resolved);
             await battle.waitUntilReady();
             this.battle = battle;
 
@@ -157,6 +166,9 @@ class BattleFlow {
             return { ok: true, seq };
         } catch (err) {
             this.log.error('[battleflow] advance failed:', err.message);
+            if (this.battle === battle && this.phase === PHASE.FIGHTING && !battle.ended) {
+                this._signalReady(battle.state.turn);
+            }
             return { ok: false, reason: err.message };
         } finally {
             this.busy = false;
@@ -255,6 +267,15 @@ class BattleFlow {
             lastAckedSeq: this.lastAckedSeq,
             overlays: this.hub.clientCount,
             streamerBotPending: this.sb.pending,
+        };
+    }
+
+    _resolvePicks({ p1Species, p2Species } = {}) {
+        if (!p1Species && !p2Species) return {};
+        if (!this.cfg.ALLOW_SPECIES_PICK) throw new Error('species selection is disabled (PB_ALLOW_SPECIES_PICK)');
+        return {
+            p1Species: p1Species ? resolveSpecies(p1Species) : undefined,
+            p2Species: p2Species ? resolveSpecies(p2Species) : undefined,
         };
     }
 

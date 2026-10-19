@@ -83,6 +83,12 @@ export type ServerMessage =
 
 export type Command = 'start' | 'begin' | 'next' | 'reset';
 
+// Omitted/empty side = random Pokémon. Accepted only when the backend has ALLOW_SPECIES_PICK on.
+export interface StartArgs {
+    p1Species?: string,
+    p2Species?: string,
+}
+
 export type ClientMessage =
     | { type: 'ack', seq: number, durationMs?: number }
-    | { type: 'command', name: Command };
+    | { type: 'command', name: Command, args?: StartArgs };

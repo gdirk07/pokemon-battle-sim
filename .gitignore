@@ -18,6 +18,13 @@ frontend/public/sprites/
 # loggers
 backend/loggers/unknown-events.log
 
+# Playwright
+playwright-report/
+test-results/
+
+# todo
+todo
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -28,3 +35,10 @@ backend/loggers/unknown-events.log
 *.njsproj
 *.sln
 *.sw?
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

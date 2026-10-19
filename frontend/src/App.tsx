@@ -6,6 +6,10 @@ import { VictoryScreen } from './screens/VictoryScreen';
 import type { Screen } from '../../shared/types/battle';
 import { APP_W, APP_H, VICTORY_SCREEN_DELAY_MS } from './config/constants';
 import { Betting } from './components/Betting/Betting';
+import { DevPanel } from './components/DevPanel/DevPanel';
+
+// Opt-in per URL so the OBS browser source (no ?dev) never shows dev tools.
+const DEV_TOOLS = new URLSearchParams(window.location.search).has('dev');
 
 import './App.css'
 
@@ -66,6 +70,7 @@ export default function App() {
           <VictoryScreen battle={battle} isManual={isManual} onReset={() => command('reset')} />
         )}
       </div>
+      {DEV_TOOLS && isManual && <DevPanel phase={phase} />}
     </div>
   );
 }

@@ -186,3 +186,51 @@ describe('UI-paced orchestration', () => {
         overlay.close(); late.close(); t.stop();
     });
 });
+
+describe('species selection', () => {
+    const species = (p) => p.details.split(',')[0];
+
+    it('starts a battle with the chosen species, resolving loose names', async () => {
+        const t = await setup({ ALLOW_SPECIES_PICK: true });
+        const r = await t.orch.start({ p1Species: 'iron crown', p2Species: 'hooh' });
+        expect(r.ok).toBe(true);
+        expect(species(t.orch.battle.state.player1)).toBe('Iron Crown');
+        expect(species(t.orch.battle.state.player2)).toBe('Ho-Oh');
+        t.stop();
+    });
+
+    it('leaves an omitted side random', async () => {
+        const t = await setup({ ALLOW_SPECIES_PICK: true });
+        expect((await t.orch.start({ p2Species: 'Roaring Moon' })).ok).toBe(true);
+        expect(species(t.orch.battle.state.player2)).toBe('Roaring Moon');
+        expect(t.orch.battle.state.player1).toBeTruthy();
+        t.stop();
+    });
+
+    it('rejects species outside the pool without touching the current screen', async () => {
+        const t = await setup({ ALLOW_SPECIES_PICK: true });
+        expect((await t.orch.start()).ok).toBe(true);
+        t.orch.reset();
+        const r = await t.orch.start({ p1Species: 'Bulbasaur' });
+        expect(r).toEqual({ ok: false, reason: expect.stringMatching(/not in the gen9randombattle pool/) });
+        expect((await t.orch.start({ p1Species: 'Notamon' })).reason).toMatch(/Unknown species/);
+        expect(t.orch.phase).toBe('idle');
+        t.stop();
+    });
+
+    it('rejects picks when ALLOW_SPECIES_PICK is off (Streamer.bot path included)', async () => {
+        const t = await setup({ ALLOW_SPECIES_PICK: false });
+        expect((await t.orch.start({ p1Species: 'Ho-Oh' })).reason).toMatch(/disabled/);
+        expect((await t.orch.start()).ok).toBe(true);       // plain random start still works
+        t.stop();
+    });
+
+    it('passes PB_START_BATTLE species through to start()', async () => {
+        const t = await setup({ ALLOW_SPECIES_PICK: true });
+        const spy = vi.spyOn(t.orch, 'start');
+        t.sb.emit('action', 'PB_START_BATTLE', { p1Species: 'Ho-Oh', p2Species: 'Iron Crown' });
+        expect(spy).toHaveBeenCalledWith({ p1Species: 'Ho-Oh', p2Species: 'Iron Crown' });
+        await spy.mock.results[0].value;
+        t.stop();
+    });
+});

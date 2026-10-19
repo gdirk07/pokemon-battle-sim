@@ -16,7 +16,6 @@ function formatMoveName(move) {
 function parseTurnLogLine(raw) {
     const parts = raw.split('|');
     const type = parts[1];
-
     switch (type) {
         case 'move': {
             const user = parsePokemonName(parts[2]);
@@ -86,7 +85,7 @@ function parseTurnLogLine(raw) {
                 return `${pokemon} absorbed some energy!`;
             }
             if (from.includes('[silent]')) {
-                return;
+                return null;
             }
             if (from.includes('Wish')) {
                 return `${misc}'s wish came true!`;
@@ -569,15 +568,46 @@ function formatWeather(weather) {
     return map[weather] ?? null;
 }
 
-// Parses an array of raw event lines into readable strings, filtering nulls
+const HIT_MODIFIERS = ['-crit', '-supereffective', '-resisted'];
+const ACTION_BOUNDARIES = ['move', 'switch', 'drag'];
+
+// Parses an array of raw event lines into readable strings, filtering nulls.
+// The HP from a move's damage line is also copied onto the first crit/effectiveness line before it,
+// so the HP bar drops as soon as that line is shown.
 function parseTurnLog(entries) {
-    return entries
-        .map(entry => ({
+    const mappedEntries = [];
+    let damageMod = -1;
+    let damageModTarget = null;
+    for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        const parts = entry.raw.split('|');
+        const type = parts[1];
+        const target = parts[2];
+
+        if (ACTION_BOUNDARIES.includes(type)) {
+            damageMod = -1;
+        }
+        if (damageMod === -1 && HIT_MODIFIERS.includes(type)) {
+            damageMod = i;
+            damageModTarget = target;
+        }
+        // Direct move damage has no [from] tag; Life Orb, recoil, poison etc. do
+        const isDirectDamage = type === '-damage' && !(parts[4] ?? '').startsWith('[from]');
+        if (damageMod !== -1 && isDirectDamage && target === damageModTarget) {
+            mappedEntries[damageMod].hp = entry.hp;
+            damageMod = -1;
+        }
+
+        const mappedLine = {
             text: parseTurnLogLine(entry.raw),
             hp: entry.hp ?? null,
             status: entry.status ?? null,
             substitute: entry.substitute ?? null,
-        }))
+        };
+
+        mappedEntries.push(mappedLine);
+    }
+    return mappedEntries
         .filter(entry => entry.text !== null);
 }
 
