@@ -25,8 +25,8 @@ npm install
 npm run dev
 ```
 Then open http://localhost:<port> (located in frontend/vite.config.ts, default: 5173)
-Note: on every run, scripts/sync-sprites.js is ran to download the sprites locally resulting in about ~322mb
-of images and animations, a workaround is in progress for simply just trying it out.
+Note: use npm run sync-sprites to download the assets locally if you want a smoother experience, it will contain ~322mb
+of images and animations
 
 ## How It works
 

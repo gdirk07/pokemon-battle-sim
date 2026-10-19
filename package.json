@@ -6,8 +6,6 @@
   ],
   "scripts": {
     "sync-sprites": "node scripts/sync-sprites.js",
-    "predev": "npm run sync-sprites",
-    "prebuild": "npm run sync-sprites",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && node --watch --env-file=.env.development index.js",
     "dev": "concurrently -k -n backend,frontend -c blue,green \"npm:dev:backend\" \"npm:dev:frontend\"",
